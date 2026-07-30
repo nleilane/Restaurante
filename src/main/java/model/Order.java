@@ -2,8 +2,7 @@ package model;
 
 import enums.OrderStatus;
 import jakarta.persistence.*;
-import org.springframework.data.annotation.Id;
-
+import jakarta.persistence.Id;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +10,7 @@ import java.util.List;
 @Entity
 public class Order {
     @Id
+    @GeneratedValue (strategy = GenerationType.IDENTITY)
     private int id;
     private LocalDateTime orderDate;
     private OrderStatus orderStatus;
@@ -59,7 +59,6 @@ public class Order {
     }
 
     public void setTable(Table table) {
-        this.table = this.table;
     }
 
     public List<Dish> getDishes() {
