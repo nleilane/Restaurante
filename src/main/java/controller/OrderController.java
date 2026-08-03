@@ -11,9 +11,9 @@ import repository.DishRepository;
 import repository.OrderRepository;
 import repository.TableRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 public class OrderController {
@@ -33,7 +33,7 @@ public class OrderController {
         return orderRepository.findAll();
     }
 
-    @PostMapping("/addOrder/{idTable}")
+    @PostMapping("/orders/addOrder/{idTable}")
     public Order addOrder(@PathVariable int idTable, @RequestBody Order orderToBeAdd) {
         Table table = tableRepository.findById(idTable).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mesa não encontrada."));
         if (!table.isAvailable()) {
@@ -44,8 +44,7 @@ public class OrderController {
         orderToBeAdd.setOrderStatus(OrderStatus.OPEN);
         table.setAvailable(false);
         tableRepository.save(table);
-        orderRepository.save(orderToBeAdd);
-        return orderToBeAdd;
+        return orderRepository.save(orderToBeAdd);
     }
 
     @PostMapping("/orders/{idOrder}/dishes/{idDish}")
@@ -73,10 +72,39 @@ public class OrderController {
 
     @GetMapping("/orders/status/{status}")
     public List<Order> findByStatus(@PathVariable OrderStatus status) {
-        return orderRepository.findByOrderStatus((OrderStatus)status);
+        return orderRepository.findByOrderStatus(status);
     }
 
-    @DeleteMapping("/removeOrder/{idToBeRemoved}")
+    @GetMapping("/orders/total")
+    public BigDecimal getTotalPrice(@PathVariable int idOrder){
+        Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        return order.totalPrice();
+    }
+
+    @PutMapping("/orders/{idOrder}/ready")
+    public Order readyOrder(@PathVariable int idOrder){
+        Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        if(order.getOrderStatus() != OrderStatus.OPEN){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Apenas pedidos abertos podem ser marcadados como prontos.");
+        }
+        order.setOrderStatus(OrderStatus.READY);
+        return orderRepository.save(order);
+    }
+
+    @PutMapping("/orders/{idOrder}/close")
+    public Order closedOrder(@PathVariable int idOrder){
+        Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        if (order.getOrderStatus() != OrderStatus.READY){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Apenas pedidos prontos podem ser fechados.");
+        }
+        Table table = order.getTable();
+        table.setAvailable(true);
+        order.setOrderStatus(OrderStatus.CLOSED);
+        tableRepository.save(table);
+        return orderRepository.save(order);
+    }
+
+    @DeleteMapping("/orders/removeOrder/{idToBeRemoved}")
     public void removeOrder(@PathVariable int idToBeRemoved) {
         if (orderRepository.existsById(idToBeRemoved)) {
             orderRepository.deleteById(idToBeRemoved);
