@@ -75,7 +75,7 @@ public class OrderController {
         return orderRepository.findByOrderStatus(status);
     }
 
-    @GetMapping("/orders/total")
+    @GetMapping("/orders/{idOrder}/total")
     public BigDecimal getTotalPrice(@PathVariable int idOrder){
         Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
         return order.totalPrice();
@@ -104,6 +104,21 @@ public class OrderController {
         return orderRepository.save(order);
     }
 
+    @PutMapping("/orders/{idOrder}/cancel")
+    public Order cancelOrder(@PathVariable int idOrder) {
+        Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        if (order.getOrderStatus() != OrderStatus.OPEN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Apenas pedidos abertos podem ser cancelados.");
+        }
+        Table table = order.getTable();
+        if (table != null) {
+            table.setAvailable(true);
+            tableRepository.save(table);
+        }
+        order.setOrderStatus(OrderStatus.CANCELLED);
+        return orderRepository.save(order);
+    }
+
     @DeleteMapping("/orders/removeOrder/{idToBeRemoved}")
     public void removeOrder(@PathVariable int idToBeRemoved) {
         if (orderRepository.existsById(idToBeRemoved)) {
@@ -113,4 +128,19 @@ public class OrderController {
         }
         System.out.println("O Pedido " + idToBeRemoved + " foi removido!");
     }
+
+   @DeleteMapping("/orders/{idOrder}/dishes/{idDish}")
+   public Order removeDishFromOrder(@PathVariable int idOrder, @PathVariable int idDish){
+        Order order = orderRepository.findById(idOrder).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado."));
+        dishRepository.findById(idDish).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Prato não encontrado."));
+        if(order.getOrderStatus() != OrderStatus.OPEN){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar esse pedido.");
+        }
+        boolean removed = order.getDishes().removeIf(dish -> dish.getId() == idDish);
+        if (!removed){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O prato não pertence a este pedido.");
+        }
+        return orderRepository.save(order);
+    }
+
 }
